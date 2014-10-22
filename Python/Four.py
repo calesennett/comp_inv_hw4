@@ -5,20 +5,20 @@ import QSTK.qstkstudy.EventProfiler as ep
 import copy
 import math
 import datetime as dt
+from datetime import datetime
 import numpy as np
 import pandas as pd
 from itertools import *
 import matplotlib.pyplot as plt
+import csv
 
 def main():
     s_date = dt.datetime(2008, 1, 1)
-    e_date = dt.datetime(2009, 12, 31)
+    e_date = dt.datetime(2010, 1, 1)
     print "Reading data..."
     data, symbols = setup(s_date, e_date)
     print "Finding events..."
     events = create_matrix(data, symbols)
-    print "Making graph..."
-    ep.eventprofiler(events, data, i_lookback=20, i_lookforward=20, s_filename="SP500 2012.pdf")
 
 def create_matrix(data, syms):
     prices = data['actual_close']
@@ -27,16 +27,40 @@ def create_matrix(data, syms):
 
     timestamps = prices.index
 
-    for sym in syms:
-        for i in range(1, len(timestamps)):
+    trades = []
+    count = 0
+
+    for i in range(1, len(timestamps)):
+        for sym in syms:
             p_today = prices[sym].ix[timestamps[i]]
             p_yesterday = prices[sym].ix[timestamps[i-1]]
 
             # specified event
-            if p_yesterday >= 10.0 and p_today < 10.0:
-                events[sym].ix[timestamps[i]] = 1
-
+            if p_yesterday >= 5.0 and p_today < 5.0:
+                trades.append({ "Year": int(str(timestamps[i])[:10].split('-')[0]),
+                                "Month": int(str(timestamps[i])[:10].split('-')[1]),
+                                "Day": int(str(timestamps[i])[:10].split('-')[2]),
+                                "Sym": sym, "Type": "Buy", "Shares": 100})
+                if (i >= len(timestamps) - 5):
+                    trades.append({ "Year": int(str(timestamps[len(timestamps)-1])[:10].split('-')[0]),
+                                    "Month": int(str(timestamps[len(timestamps)-1])[:10].split('-')[1]),
+                                    "Day": int(str(timestamps[len(timestamps)-1])[:10].split('-')[2]),
+                                    "Sym": sym, "Type": "Sell", "Shares": 100})
+                else:
+                    trades.append({ "Year": int(str(timestamps[i+5])[:10].split('-')[0]),
+                                    "Month": int(str(timestamps[i+5])[:10].split('-')[1]),
+                                    "Day": int(str(timestamps[i+5])[:10].split('-')[2]),
+                                    "Sym": sym, "Type": "Sell", "Shares": 100})
+    output_trades(trades)
     return events
+
+def output_trades(trades):
+    header = ["Year", "Month", "Day", "Sym", "Type", "Shares"]
+    trades_file = open('trades.csv', 'wb')
+    csv_writer = csv.DictWriter(trades_file, delimiter=',', fieldnames=header)
+    csv_writer.writerow(dict((fn,fn) for fn in header))
+    for row in trades:
+         csv_writer.writerow(row)
 
 def setup(s_date, e_date):
     time_of_day = dt.timedelta(hours=16)
